@@ -9,7 +9,7 @@ namespace djs.network.tftp
         static void Main(string[] args)
         {
             CTFTPClient client = new CTFTPClient();
-            client.send_file("testfile.dat", "127.0.0.1", 69);
+            client.get_file("testfile.dat", "152.23.44.12", 69);
             Console.ReadKey();
         }
     }
