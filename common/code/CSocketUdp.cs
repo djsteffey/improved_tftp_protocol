@@ -53,7 +53,14 @@ namespace djs.network.tftp
             IPAddress[] address_list = Dns.GetHostAddresses(remote_name);
 
             // just use the first address in the list
-            this.m_remote_endpoint = new IPEndPoint(address_list[0], remote_port);
+            foreach (IPAddress address in address_list)
+            {
+                if (address.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    this.m_remote_endpoint = new IPEndPoint(address_list[0], remote_port);
+                    return;
+                }
+            }
         }
 
         public void set_remote(IPEndPoint remote_endpoint)

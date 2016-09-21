@@ -1,0 +1,5 @@
+E:\programming\gitrepo\comp631_project\common\bin\Debug\common.dll
+E:\programming\gitrepo\comp631_project\common\bin\Debug\common.pdb
+E:\programming\gitrepo\comp631_project\common\obj\Debug\common.csprojResolveAssemblyReference.cache
+E:\programming\gitrepo\comp631_project\common\obj\Debug\common.dll
+E:\programming\gitrepo\comp631_project\common\obj\Debug\common.pdb
