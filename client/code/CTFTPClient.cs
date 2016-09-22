@@ -103,8 +103,8 @@ namespace djs.network.tftp
                 while (true)
                 {
                     // wait for the reply
-                    IPEndPoint remote_endpoint = new IPEndPoint(IPAddress.Any, 0);
-                    received_bytes = this.m_socket.receive(receive_buffer, ref remote_endpoint);
+                    IPEndPoint remote_endpoint = null;
+                    received_bytes = this.m_socket.receive(receive_buffer, out remote_endpoint);
                     if (received_bytes > 0)
                     {
                         // success in getting a reply back
@@ -321,8 +321,8 @@ namespace djs.network.tftp
                 while (true)
                 {
                     // wait for the reply
-                    IPEndPoint remote_endpoint = new IPEndPoint(IPAddress.Any, 0);
-                    received_bytes = this.m_socket.receive(receive_buffer, ref remote_endpoint);
+                    IPEndPoint remote_endpoint = null;
+                    received_bytes = this.m_socket.receive(receive_buffer, out remote_endpoint);
                     if (received_bytes > 0)
                     {
                         // success in getting a reply back
@@ -515,10 +515,12 @@ namespace djs.network.tftp
                     return EStatus.ERROR_SOCKET_SEND;
                 }
 
+                #if _TRACE
                 if (this.m_data_block_number % 1 == 0)
                 {
                     Console.WriteLine("Received data block.  Size: " + message.DataLength.ToString() + "\tRollover: " + this.m_data_block_number_rollovers.ToString() + "\tBlock: " + this.m_data_block_number.ToString() + "\tTotal Bytes: " + this.m_file_bytes_sent_or_received.ToString());
                 }
+                #endif
 
                 // write data to file
                 // seek to the position for this specific block

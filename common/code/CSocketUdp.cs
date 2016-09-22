@@ -30,7 +30,7 @@ namespace djs.network.tftp
         public CSocketUdp(int local_port = 0)
         {
             // create the socket
-            this.m_socket = new Socket(SocketType.Dgram, ProtocolType.Udp);
+            this.m_socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 
             // default timeout of 5 seconds
             this.m_socket.ReceiveTimeout = 5000;
@@ -51,13 +51,12 @@ namespace djs.network.tftp
         {
             // turn the remote_name and port into the remote_endpoint
             IPAddress[] address_list = Dns.GetHostAddresses(remote_name);
-
             // just use the first address in the list
             foreach (IPAddress address in address_list)
             {
                 if (address.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    this.m_remote_endpoint = new IPEndPoint(address_list[0], remote_port);
+                    this.m_remote_endpoint = new IPEndPoint(address, remote_port);
                     return;
                 }
             }
@@ -80,18 +79,22 @@ namespace djs.network.tftp
             return true;
         }
 
-        public int receive(byte[] buffer, ref IPEndPoint remote_endpoint)
+        public int receive(byte[] buffer, out IPEndPoint remote_endpoint)
         {
             try
             {
-                EndPoint ep = (EndPoint)remote_endpoint;
+                // create the endpoint to capture the remote address
+                EndPoint ep = (EndPoint)(new IPEndPoint(IPAddress.Any, 0));
+                // receive the data
                 int bytes = this.m_socket.ReceiveFrom(buffer, ref ep);
+                // return the remote_endpoint back to the caller
                 remote_endpoint = (IPEndPoint)ep;
                 return bytes;
             }
             catch (SocketException)
             {
                 // timeout or some other comms problem
+                remote_endpoint = null;
                 return 0;
             }
         }
