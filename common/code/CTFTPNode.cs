@@ -11,7 +11,7 @@ namespace djs.network.tftp
     {
         public enum ENodeType { UNDEFINED, SERVER, CLIENT };
         public enum ETransferDirection { UNDEFINED, GET, PUT };
-        private enum ELogLevel { INFO, WARNING, ERROR, STATISTICS, TRACE };
+        private enum ELogLevel { INFO, WARNING, ERROR, STATISTICS, TRACE, MILESTONE };
         public enum EStatus
         {
             UNDEFINED, OK, ERROR
@@ -46,6 +46,7 @@ namespace djs.network.tftp
         private long m_last_block;
         private int m_window_size_received;
         private uint m_duplicates_received;
+        private int m_last_percent_reported;
 
         // properties
         public long TotalSize
@@ -97,6 +98,7 @@ namespace djs.network.tftp
             this.m_last_block = 0;
             this.m_window_size_received = 0;
             this.m_duplicates_received = 0;
+            this.m_last_percent_reported = 0;
         }
 
         public EStatus client_transfer_file(ETransferDirection direction, string remote_name, int remote_port, string filename, ushort blksize, ushort timeout_in_secs, uint total_size, ushort windowsize, float drop_chance, bool out_of_order)
@@ -374,6 +376,18 @@ namespace djs.network.tftp
                         return status;
                     }
                 }
+
+                // report percentage increase?
+                int percent = (int)((message.BlockNumber / (float)this.m_last_block) * 100);
+                if (percent > this.m_last_percent_reported)
+                {
+                    this.m_last_percent_reported = percent;
+                    if ((this.m_last_percent_reported % 10) == 0)
+                    {
+                        this.log_message("Percent Complete=" + this.m_last_percent_reported.ToString(), ELogLevel.MILESTONE);
+                    }
+                }
+
 
                 // check if we are done
                 if (message.DataLength < this.m_blksize)
@@ -1412,6 +1426,11 @@ namespace djs.network.tftp
                 case ELogLevel.TRACE:
                     {
 //                        Console.WriteLine(this.m_timer_total.Elapsed.ToString() + " *** TRACE ***: " + message);
+                    }
+                    break;
+                case ELogLevel.MILESTONE:
+                    {
+                        Console.WriteLine("*** MILESTONE ***: " + message);
                     }
                     break;
                 case ELogLevel.WARNING:

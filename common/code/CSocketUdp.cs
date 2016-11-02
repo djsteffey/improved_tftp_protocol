@@ -157,8 +157,6 @@ namespace djs.network
             }
 
             // not dropping so do it
-            char[] c = System.Text.Encoding.ASCII.GetString(buffer).ToCharArray();
-
             if (this.m_socket.SendTo(buffer, length, SocketFlags.None, this.m_remote_endpoint) != length)
             {
                 return false;
@@ -184,9 +182,6 @@ namespace djs.network
             }
 
             // not dropping so do it
-            char[] c = System.Text.Encoding.ASCII.GetString(buffer).ToCharArray();
-
-
             if (this.m_socket.SendTo(buffer, length, SocketFlags.None, remote_endpoint) != length)
             {
                 return false;
