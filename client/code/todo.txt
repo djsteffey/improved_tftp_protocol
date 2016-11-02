@@ -1,0 +1,5 @@
+﻿- block rollover
+- window size
+- transfer streams/buckets
+- get rid of creation of new byte array on every data block send
+- get rid of the Thread.Sleep(1) in send_message(...)

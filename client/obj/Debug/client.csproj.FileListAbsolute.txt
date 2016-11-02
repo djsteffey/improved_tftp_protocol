@@ -6,3 +6,11 @@ E:\programming\gitrepo\comp631_project\client\bin\Debug\common.pdb
 E:\programming\gitrepo\comp631_project\client\obj\Debug\client.csprojResolveAssemblyReference.cache
 E:\programming\gitrepo\comp631_project\client\obj\Debug\client.exe
 E:\programming\gitrepo\comp631_project\client\obj\Debug\client.pdb
+D:\programming\gitrepo\comp631_project\client\bin\Debug\client.exe.config
+D:\programming\gitrepo\comp631_project\client\obj\Debug\client.exe
+D:\programming\gitrepo\comp631_project\client\obj\Debug\client.pdb
+D:\programming\gitrepo\comp631_project\client\bin\Debug\client.exe
+D:\programming\gitrepo\comp631_project\client\bin\Debug\client.pdb
+D:\programming\gitrepo\comp631_project\client\bin\Debug\common.dll
+D:\programming\gitrepo\comp631_project\client\bin\Debug\common.pdb
+D:\programming\gitrepo\comp631_project\client\obj\Debug\client.csprojResolveAssemblyReference.cache

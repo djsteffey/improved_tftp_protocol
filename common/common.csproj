@@ -32,6 +32,7 @@
   <ItemGroup>
     <Compile Include="code\CSocketUdp.cs" />
     <Compile Include="code\CTFTPMessage.cs" />
+    <Compile Include="code\CTFTPNode.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup />

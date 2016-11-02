@@ -7,7 +7,7 @@ using System.Text;
 
 namespace djs.network.tftp
 {
-    public enum ETransferMode { BINARY, ASCII, UNKNOWN };
+    public enum ETransferMode { UNDEFINED, BINARY, ASCII };
 
     public enum EOpcode { READ_REQUEST = 1, WRITE_REQUEST = 2, DATA = 3, ACK = 4, ERROR = 5, OPTION_ACK = 6 };
 
@@ -29,7 +29,7 @@ namespace djs.network.tftp
                 case "netascii": { return ETransferMode.ASCII; }
                 case "octet": { return ETransferMode.BINARY; }
             }
-            return ETransferMode.UNKNOWN;
+            return ETransferMode.UNDEFINED;
         }
 
         public static string tftp_mode_to_string(ETransferMode m)
@@ -114,8 +114,10 @@ namespace djs.network.tftp
         private string m_filename;
         private ETransferMode m_mode;
         private ushort m_block_size;
-        private uint m_total_size;
+        private long m_total_size;
         private ushort m_timeout_in_secs;
+        private ushort m_window_size;
+        private bool m_out_of_order;
 
         // properties
         public override EOpcode Opcode
@@ -124,7 +126,7 @@ namespace djs.network.tftp
         }
 
         // functions
-        public CTFTPMessageOutWriteRequest(string filename, ETransferMode mode, ushort block_size, uint total_size, ushort timeout_in_secs)
+        public CTFTPMessageOutWriteRequest(string filename, ETransferMode mode, ushort block_size, long total_size, ushort timeout_in_secs, ushort window_size, bool out_of_order)
         {
             // save the passed variables
             this.m_filename = filename;
@@ -132,6 +134,8 @@ namespace djs.network.tftp
             this.m_block_size = block_size;
             this.m_total_size = total_size;
             this.m_timeout_in_secs = timeout_in_secs;
+            this.m_window_size = window_size;
+            this.m_out_of_order = out_of_order;
 
             // allocate the buffer space...estimate the size needed based on length of the filename
             // plus room for opcode, mode, blocksize, timeout, extra padding
@@ -210,10 +214,46 @@ namespace djs.network.tftp
             this.m_buffer[buffer_index] = 0;
             buffer_index += 1;
 
+            // windowsize value
+            temp = "windowsize";
+            Array.Copy(Encoding.ASCII.GetBytes(temp), 0, this.m_buffer, buffer_index, temp.Length);
+            buffer_index += temp.Length;
+            // termiante it with 0
+            this.m_buffer[buffer_index] = 0;
+            buffer_index += 1;
+            // now the value
+            temp = this.m_window_size.ToString();
+            Array.Copy(Encoding.ASCII.GetBytes(temp), 0, this.m_buffer, buffer_index, temp.Length);
+            buffer_index += temp.Length;
+            // termiante it with 0
+            this.m_buffer[buffer_index] = 0;
+            buffer_index += 1;
+
+            // buckets value
+            temp = "outoforder";
+            Array.Copy(Encoding.ASCII.GetBytes(temp), 0, this.m_buffer, buffer_index, temp.Length);
+            buffer_index += temp.Length;
+            // termiante it with 0
+            this.m_buffer[buffer_index] = 0;
+            buffer_index += 1;
+            // now the value
+            if (this.m_out_of_order == true)
+            {
+                temp = "1";
+            }
+            else
+            {
+                temp = "0";
+            }
+            Array.Copy(Encoding.ASCII.GetBytes(temp), 0, this.m_buffer, buffer_index, temp.Length);
+            buffer_index += temp.Length;
+            // termiante it with 0
+            this.m_buffer[buffer_index] = 0;
+            buffer_index += 1;
+
             // now save the buffer length
             this.m_buffer_length = buffer_index;
         }
-
     }
 
     public class CTFTPMessageOutReadRequest : CTFTPMessageOut
@@ -224,6 +264,8 @@ namespace djs.network.tftp
         private ushort m_block_size;
         private uint m_total_size;
         private ushort m_timeout_in_secs;
+        private ushort m_window_size;
+        private bool m_out_of_order;
 
         // properties
         public override EOpcode Opcode
@@ -232,14 +274,16 @@ namespace djs.network.tftp
         }
 
         // functions
-        public CTFTPMessageOutReadRequest(string filename, ETransferMode mode, ushort block_size, ushort timeout_in_secs)
+        public CTFTPMessageOutReadRequest(string filename, ETransferMode mode, ushort block_size, ushort timeout_in_secs, uint tsize, ushort windowsize, bool out_of_order)
         {
             // save the passed variables
             this.m_filename = filename;
             this.m_mode = mode;
             this.m_block_size = block_size;
-            this.m_total_size = 0;
+            this.m_total_size = tsize;
             this.m_timeout_in_secs = timeout_in_secs;
+            this.m_window_size = windowsize;
+            this.m_out_of_order = out_of_order;
 
             // allocate the buffer space...estimate the size needed based on length of the filename
             // plus room for opcode, mode, blocksize, timeout, extra padding
@@ -319,6 +363,43 @@ namespace djs.network.tftp
             this.m_buffer[buffer_index] = 0;
             buffer_index += 1;
 
+            // windowsize value
+            temp = "windowsize";
+            Array.Copy(Encoding.ASCII.GetBytes(temp), 0, this.m_buffer, buffer_index, temp.Length);
+            buffer_index += temp.Length;
+            // termiante it with 0
+            this.m_buffer[buffer_index] = 0;
+            buffer_index += 1;
+            // now the value
+            temp = this.m_window_size.ToString();
+            Array.Copy(Encoding.ASCII.GetBytes(temp), 0, this.m_buffer, buffer_index, temp.Length);
+            buffer_index += temp.Length;
+            // termiante it with 0
+            this.m_buffer[buffer_index] = 0;
+            buffer_index += 1;
+
+            // buckets value
+            temp = "outoforder";
+            Array.Copy(Encoding.ASCII.GetBytes(temp), 0, this.m_buffer, buffer_index, temp.Length);
+            buffer_index += temp.Length;
+            // termiante it with 0
+            this.m_buffer[buffer_index] = 0;
+            buffer_index += 1;
+            // now the value
+            if (out_of_order == true)
+            {
+                temp = "1";
+            }
+            else
+            {
+                temp = "0";
+            }
+            Array.Copy(Encoding.ASCII.GetBytes(temp), 0, this.m_buffer, buffer_index, temp.Length);
+            buffer_index += temp.Length;
+            // termiante it with 0
+            this.m_buffer[buffer_index] = 0;
+            buffer_index += 1;
+
             // now save the buffer length
             this.m_buffer_length = buffer_index;
         }
@@ -334,9 +415,9 @@ namespace djs.network.tftp
         {
             get { return EOpcode.DATA; }
         }
-        public int DataLength
+        public ushort DataLength
         {
-            get { return this.m_buffer_length - 4; }
+            get { return (ushort)(this.m_buffer_length - 4); }
         }
 
         // functions
@@ -486,7 +567,6 @@ namespace djs.network.tftp
     {
         // variables
 
-
         // properties
         public abstract EOpcode Opcode
         {
@@ -503,24 +583,60 @@ namespace djs.network.tftp
     public class CTFTPMessageInReadRequest : CTFTPMessageIn
     {
         // variables
+        private Dictionary<string, string> m_options;
         private string m_filename;
         private ETransferMode m_mode;
         private ushort m_block_size;
         private uint m_total_size;
         private ushort m_timeout_in_secs;
+        private ushort m_window_size;
+        private bool m_out_of_order;
 
         // properties
         public override EOpcode Opcode
         {
             get { return EOpcode.READ_REQUEST; }
         }
+        public string Filename
+        {
+            get { return this.m_filename; }
+        }
+        public ETransferMode TransferMode
+        {
+            get { return this.m_mode; }
+        }
+        public ushort BlockSize
+        {
+            get { return this.m_block_size; }
+        }
+        public uint TotalSize
+        {
+            get { return this.m_total_size; }
+        }
+        public ushort TimeoutInSecs
+        {
+            get { return this.m_timeout_in_secs; }
+        }
+        public ushort WindowSize
+        {
+            get { return this.m_window_size; }
+        }
+        public bool OutOfOrder
+        {
+            get { return this.m_out_of_order; }
+        }
+        public Dictionary<string, string> Options
+        {
+            get { return this.m_options; }
+        }
 
         // functions
         public CTFTPMessageInReadRequest(byte[] buffer, int buffer_length)
         {
             // init vars
+            this.m_options = new Dictionary<string, string>();
             this.m_filename = "";
-            this.m_mode = ETransferMode.UNKNOWN;
+            this.m_mode = ETransferMode.UNDEFINED;
             this.m_block_size = 512;
             this.m_total_size = 0;
             this.m_timeout_in_secs = 5;
@@ -575,6 +691,9 @@ namespace djs.network.tftp
                 // get past the terminating 0
                 ++buffer_index;
 
+                // save the options
+                this.m_options[option] = value;
+
                 // check which option
                 switch (option)
                 {
@@ -593,6 +712,23 @@ namespace djs.network.tftp
                             this.m_timeout_in_secs = Convert.ToUInt16(value);
                         }
                         break;
+                    case "windowsize":
+                        {
+                            this.m_window_size = Convert.ToUInt16(value);
+                        }
+                        break;
+                    case "outoforder":
+                        {
+                            if (value == "1")
+                            {
+                                this.m_out_of_order = true;
+                            }
+                            else
+                            {
+                                this.m_out_of_order = false;
+                            }
+                        }
+                        break;
                 }
             }
         }
@@ -601,24 +737,61 @@ namespace djs.network.tftp
     public class CTFTPMessageInWriteRequest : CTFTPMessageIn
     {
         // variables
+        private Dictionary<string, string> m_options;
         private string m_filename;
         private ETransferMode m_mode;
         private ushort m_block_size;
         private uint m_total_size;
         private ushort m_timeout_in_secs;
+        private ushort m_window_size;
+        private bool m_out_of_order;
 
         // properties
         public override EOpcode Opcode
         {
             get { return EOpcode.WRITE_REQUEST; }
         }
+        public string Filename
+        {
+            get { return this.m_filename; }
+        }
+        public ETransferMode TransferMode
+        {
+            get { return this.m_mode; }
+        }
+        public ushort BlockSize
+        {
+            get { return this.m_block_size; }
+        }
+        public uint TotalSize
+        {
+            get { return this.m_total_size; }
+        }
+        public ushort TimeoutInSecs
+        {
+            get { return this.m_timeout_in_secs; }
+        }
+        public ushort WindowSize
+        {
+            get { return this.m_window_size; }
+        }
+        public bool OutOfOrder
+        {
+            get { return this.m_out_of_order; }
+        }
+        public Dictionary<string,string> Options
+        {
+            get { return this.m_options; }
+        }
+
 
         // functions
         public CTFTPMessageInWriteRequest(byte[] buffer, int buffer_length)
         {
             // init vars
+            this.m_options = new Dictionary<string, string>();
             this.m_filename = "";
-            this.m_mode = ETransferMode.UNKNOWN;
+            this.m_mode = ETransferMode.UNDEFINED;
             this.m_block_size = 512;
             this.m_total_size = 0;
             this.m_timeout_in_secs = 5;
@@ -674,6 +847,9 @@ namespace djs.network.tftp
                 // get past the terminating 0
                 ++buffer_index;
 
+                // save the options
+                this.m_options[option] = value;
+
                 // check which option
                 switch (option)
                 {
@@ -692,6 +868,23 @@ namespace djs.network.tftp
                             this.m_timeout_in_secs = Convert.ToUInt16(value);
                         }
                         break;
+                    case "windowsize":
+                        {
+                            this.m_window_size = Convert.ToUInt16(value);
+                        }
+                        break;
+                    case "outoforder":
+                        {
+                            if (value == "1")
+                            {
+                                this.m_out_of_order = true;
+                            }
+                            else
+                            {
+                                this.m_out_of_order = false;
+                            }
+                        }
+                        break;
                 }
             }
         }
@@ -702,7 +895,7 @@ namespace djs.network.tftp
         // variables
         private ushort m_block_number;
         private byte[] m_data;
-        private uint m_data_length;
+        private ushort m_data_length;
 
         // properties
         public override EOpcode Opcode
@@ -717,7 +910,7 @@ namespace djs.network.tftp
         {
             get { return this.m_data; }
         }
-        public uint DataLength
+        public ushort DataLength
         {
             get { return this.m_data_length; }
         }
@@ -732,7 +925,7 @@ namespace djs.network.tftp
             this.m_block_number = Utilities.ntohs(this.m_block_number);
 
             // extract data
-            this.m_data_length = (uint)(buffer_length - 4);
+            this.m_data_length = (ushort)(buffer_length - 4);
             this.m_data = new byte[this.m_data_length];
             Array.Copy(buffer, 4, this.m_data, 0, this.m_data_length);
         }
@@ -814,6 +1007,8 @@ namespace djs.network.tftp
         private ushort m_block_size;
         private uint m_total_size;
         private ushort m_timeout_in_secs;
+        private ushort m_window_size;
+        private bool m_out_of_order;
 
         // properties
         public override EOpcode Opcode
@@ -832,11 +1027,30 @@ namespace djs.network.tftp
         {
             get { return this.m_timeout_in_secs; }
         }
+        public ushort WindowSize
+        {
+            get { return this.m_window_size; }
+        }
+        public bool OutOfOrder
+        {
+            get { return this.m_out_of_order; }
+        }
+        public Dictionary<string, string> Options
+        {
+            get { return this.m_options; }
+        }
 
         // functions
         public CTFTPMessageInOptionAck(byte[] buffer, int buffer_length)
         {
             this.m_options = new Dictionary<string, string>();
+
+            // initial values for the options
+            this.m_block_size = 512;
+            this.m_total_size = 0;
+            this.m_timeout_in_secs = 3;
+            this.m_window_size = 1;
+            this.m_out_of_order = false;
 
             // no need to get opcode as it was already decoded to get to this function
             // so also skip the buffer past it
@@ -882,7 +1096,25 @@ namespace djs.network.tftp
                     case "timeout":
                         {
                             this.m_timeout_in_secs = Convert.ToUInt16(value);
-                        } break;
+                        }
+                        break;
+                    case "windowsize":
+                        {
+                            this.m_window_size = Convert.ToUInt16(value);
+                        }
+                        break;
+                    case "outoforder":
+                        {
+                            if (value == "1")
+                            {
+                                this.m_out_of_order = true;
+                            }
+                            else
+                            {
+                                this.m_out_of_order = false;
+                            }
+                        }
+                        break;
                 }
             }
         }
