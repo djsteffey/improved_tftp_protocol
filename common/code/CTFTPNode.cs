@@ -382,7 +382,7 @@ namespace djs.network.tftp
                 if (percent > this.m_last_percent_reported)
                 {
                     this.m_last_percent_reported = percent;
-                    if ((this.m_last_percent_reported % 10) == 0)
+                    if ((this.m_last_percent_reported % 5) == 0)
                     {
                         this.log_message("Percent Complete=" + this.m_last_percent_reported.ToString(), ELogLevel.MILESTONE);
                     }
