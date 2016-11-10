@@ -60,15 +60,15 @@ namespace djs.network.tftp
                         {
                             // create a new connected client thread and start it
                             CTFTPMessageInReadRequest read_request = new CTFTPMessageInReadRequest(receive_buffer, receive_bytes);
-                            CTFTPNode server = new CTFTPNode();
-                            server.server_transfer_file(CTFTPNode.ETransferDirection.GET, remote_endpoint, read_request);
+                            CTFTPNodeOutOfOrder server = new CTFTPNodeOutOfOrder();
+                            server.server_transfer_file(CTFTPNodeOutOfOrder.ETransferDirection.GET, remote_endpoint, read_request);
                         } break;
                     case EOpcode.WRITE_REQUEST:
                         {
                             // create a new connected client thread and start it
                             CTFTPMessageInWriteRequest write_request = new CTFTPMessageInWriteRequest(receive_buffer, receive_bytes);
-                            CTFTPNode server = new CTFTPNode();
-                            server.server_transfer_file(CTFTPNode.ETransferDirection.PUT, remote_endpoint, write_request);
+                            CTFTPNodeOutOfOrder server = new CTFTPNodeOutOfOrder();
+                            server.server_transfer_file(CTFTPNodeOutOfOrder.ETransferDirection.PUT, remote_endpoint, write_request);
                         }
                         break;
                     default:

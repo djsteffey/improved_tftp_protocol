@@ -9,7 +9,7 @@ namespace djs.network.tftp
 {
     public enum ETransferMode { UNDEFINED, BINARY, ASCII };
 
-    public enum EOpcode { READ_REQUEST = 1, WRITE_REQUEST = 2, DATA = 3, ACK = 4, ERROR = 5, OPTION_ACK = 6 };
+    public enum EOpcode { READ_REQUEST = 1, WRITE_REQUEST = 2, DATA = 3, ACK = 4, ERROR = 5, OPTION_ACK = 6, PING = 7, PONG = 8 };
 
     public enum EErrorCode
     {
@@ -76,6 +76,18 @@ namespace djs.network.tftp
         public static ushort ntohs(ushort value)
         {
             value = (ushort)(IPAddress.NetworkToHostOrder((short)(value)));
+            return value;
+        }
+
+        public static int htoni(int value)
+        {
+            value = IPAddress.HostToNetworkOrder(value);
+            return value;
+        }
+
+        public static int ntohi(int value)
+        {
+            value = IPAddress.NetworkToHostOrder(value);
             return value;
         }
     }
@@ -447,6 +459,7 @@ namespace djs.network.tftp
     {
         // variables
         private ushort m_block_number;
+        private uint m_past_acks;
 
         // properties
         public override EOpcode Opcode
@@ -455,13 +468,15 @@ namespace djs.network.tftp
         }
 
         // functions
-        public CTFTPMessageOutAck(ushort block_number)
+        public CTFTPMessageOutAck(ushort block_number, uint past_acks)
         {
             // save passed
             this.m_block_number = block_number;
+            this.m_past_acks = past_acks;
+
 
             // allocate buffer
-            this.m_buffer_length = 4;
+            this.m_buffer_length = 8;
             this.m_buffer = new byte[this.m_buffer_length];
 
             // set the opcode
@@ -471,6 +486,9 @@ namespace djs.network.tftp
             // set block number
             block_number = Utilities.htons((ushort)(block_number));
             Array.Copy(BitConverter.GetBytes(block_number), 0, this.m_buffer, 2, 2);
+
+            // set the past acks...if the received doesnt support out of order then it will ignore it
+            Array.Copy(BitConverter.GetBytes(past_acks), 0, this.m_buffer, 4, 4);
         }
     }
 
@@ -562,6 +580,97 @@ namespace djs.network.tftp
             ++this.m_buffer_length;
         }
     }
+
+    // only for our custom server/client to measure RTT
+    public class CTFTPMessageOutPing : CTFTPMessageOut
+    {
+        // variables
+        private int m_ping_id;
+        private float m_current_time;
+
+
+        // properties
+        public override EOpcode Opcode
+        {
+            get { return EOpcode.PING; }
+        }
+        public int PingId
+        {
+            get { return this.m_ping_id; }
+        }
+        public float Time
+        {
+            get { return this.m_current_time; }
+        }
+
+        // functions
+        public CTFTPMessageOutPing(float time, int id)
+        {
+            // save passed
+            this.m_current_time = time;
+            this.m_ping_id = id;
+
+            // allocate buffer
+            this.m_buffer_length = 10;
+            this.m_buffer = new byte[this.m_buffer_length];
+
+            // set the opcode
+            ushort opcode = Utilities.htons((ushort)(this.Opcode));
+            Array.Copy(BitConverter.GetBytes(opcode), 0, this.m_buffer, 0, 2);
+
+            // set time
+            Array.Copy(BitConverter.GetBytes(this.m_current_time), 0, this.m_buffer, 2, 4);
+
+            // set id
+            id = Utilities.htoni(id);
+            Array.Copy(BitConverter.GetBytes(id), 0, this.m_buffer, 6, 4);
+        }
+    }
+    public class CTFTPMessageOutPong : CTFTPMessageOut
+    {
+        // variables
+        private int m_ping_id;
+        private float m_current_time;
+
+
+        // properties
+        public override EOpcode Opcode
+        {
+            get { return EOpcode.PONG; }
+        }
+        public int PingId
+        {
+            get { return this.m_ping_id; }
+        }
+        public float Time
+        {
+            get { return this.m_current_time; }
+        }
+
+        // functions
+        public CTFTPMessageOutPong(float time, int id)
+        {
+            // save passed
+            this.m_current_time = time;
+            this.m_ping_id = id;
+
+            // allocate buffer
+            this.m_buffer_length = 10;
+            this.m_buffer = new byte[this.m_buffer_length];
+
+            // set the opcode
+            ushort opcode = Utilities.htons((ushort)(this.Opcode));
+            Array.Copy(BitConverter.GetBytes(opcode), 0, this.m_buffer, 0, 2);
+
+            // set time
+            Array.Copy(BitConverter.GetBytes(this.m_current_time), 0, this.m_buffer, 2, 4);
+
+            // set id
+            id = Utilities.htoni(id);
+            Array.Copy(BitConverter.GetBytes(id), 0, this.m_buffer, 6, 4);
+        }
+    }
+
 
     public abstract class CTFTPMessageIn
     {
@@ -935,6 +1044,7 @@ namespace djs.network.tftp
     {
         // variables
         private ushort m_block_number;
+        private uint m_past_acks;
 
         // properties
         public override EOpcode Opcode
@@ -945,6 +1055,10 @@ namespace djs.network.tftp
         {
             get { return this.m_block_number; }
         }
+        public uint PastAcks
+        {
+            get { return this.m_past_acks; }
+        }
 
         // functions
         public CTFTPMessageInAck(byte[] buffer, int buffer_length)
@@ -954,6 +1068,12 @@ namespace djs.network.tftp
             // extract block number
             this.m_block_number = BitConverter.ToUInt16(buffer, 2);
             this.m_block_number = Utilities.ntohs(this.m_block_number);
+
+            // check for past acks
+            if (buffer_length > 4)
+            {
+                this.m_past_acks = BitConverter.ToUInt32(buffer, 4);
+            }
         }
     }
 
@@ -1126,6 +1246,76 @@ namespace djs.network.tftp
                 return this.m_options[option];
             }
             return "";
+        }
+    }
+
+    // only for our custom server/client to measure RTT
+    public class CTFTPMessageInPing : CTFTPMessageIn
+    {
+        // variables
+        private int m_ping_id;
+        private float m_current_time;
+
+
+        // properties
+        public override EOpcode Opcode
+        {
+            get { return EOpcode.PING; }
+        }
+        public int PingId
+        {
+            get { return this.m_ping_id; }
+        }
+        public float Time
+        {
+            get { return this.m_current_time; }
+        }
+
+        // functions
+        public CTFTPMessageInPing(byte[] buffer, int buffer_length)
+        {
+            // no need to get opcode as it was already decoded to get to this function
+
+            // extract time
+            this.m_current_time = BitConverter.ToSingle(buffer, 2);
+
+            // extract id
+            this.m_ping_id = BitConverter.ToInt32(buffer, 6);
+            this.m_ping_id = Utilities.ntohi(this.m_ping_id);
+        }
+    }
+    public class CTFTPMessageInPong : CTFTPMessageIn
+    {
+        // variables
+        private int m_ping_id;
+        private float m_current_time;
+
+
+        // properties
+        public override EOpcode Opcode
+        {
+            get { return EOpcode.PONG; }
+        }
+        public int PingId
+        {
+            get { return this.m_ping_id; }
+        }
+        public float Time
+        {
+            get { return this.m_current_time; }
+        }
+
+        // functions
+        public CTFTPMessageInPong(byte[] buffer, int buffer_length)
+        {
+            // no need to get opcode as it was already decoded to get to this function
+
+            // extract time
+            this.m_current_time = BitConverter.ToSingle(buffer, 2);
+
+            // extract id
+            this.m_ping_id = BitConverter.ToInt32(buffer, 6);
+            this.m_ping_id = Utilities.ntohi(this.m_ping_id);
         }
     }
 }
