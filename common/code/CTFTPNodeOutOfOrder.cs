@@ -582,8 +582,8 @@ namespace djs.network.tftp
                 }
 
                 // check if any of our buckets have timed out
-                // bucket manager isnt created on the server until we get the read/write request and instantiate it
-                // it is not used at all on the client
+                // bucket manager isnt created on the sender until we get the read/write request and instantiate it
+                // it is not used at all on the receiver
                 if (this.m_bucket_manager != null)
                 {
                     for (int i = 0; i < this.m_bucket_manager.NumBuckets; ++i)
@@ -593,7 +593,7 @@ namespace djs.network.tftp
                         {
                             // this bucket has timed out
                             // send it again
-                            this.log_message("\tResending data=" + this.m_bucket_manager.Blocks[i].ToString(), ELogLevel.WARNING);
+                            this.log_message("\tBucket timeout.  Resending data=" + this.m_bucket_manager.Blocks[i].ToString(), ELogLevel.WARNING);
                             this.m_bucket_manager.Timers[i].Restart();
                             status = this.send_data(this.m_bucket_manager.Blocks[i]);
                             if (status != EStatus.OK)
@@ -608,8 +608,8 @@ namespace djs.network.tftp
 
         private EStatus process_data(byte[] buffer, int bytes)
         {
-            // status
-            EStatus status = EStatus.UNDEFINED;
+            // needed to calculate all previous packets received to send with the ACK
+            uint past_acks = 0;
 
             // set the state
             this.m_state = EState.PROCESSING_DATA;
@@ -626,9 +626,28 @@ namespace djs.network.tftp
             // see if it is a duplicate
             if (this.m_transfer_receive_tracker.get_is_received(message.BlockNumber))
             {
+                // it is a duplicate
+                // this means for whatever reason the sender never received our ACK for this block
+                // before they timed out on it
+                // can happen on lossy link with low windowsize
+                // increment our duplicate count
                 this.m_duplicates_received += 1;
-                this.log_message("\tduplicate.  ignoring", ELogLevel.TRACE);
+
+
+
+                // send the ACK
+                past_acks = this.m_transfer_receive_tracker.get_past_acks(message.BlockNumber);
+                // log it
+                this.log_message("\tDuplicate. Resending ACK=" + message.BlockNumber.ToString() + " past=" + Convert.ToString(past_acks, 2).PadLeft(32, '0'), ELogLevel.TRACE);
+                if (this.send_ack(message.BlockNumber, past_acks) != EStatus.OK)
+                {
+                    return EStatus.ERROR;
+                }
+
+                // set our state
                 this.m_state = EState.WAITING_DATA;
+
+                // ok
                 return EStatus.OK;
             }
 
@@ -637,9 +656,12 @@ namespace djs.network.tftp
             this.m_transfer_receive_tracker.mark_received(message.BlockNumber);
 
             // send back the ACK
-            uint past_acks = this.m_transfer_receive_tracker.get_past_acks(message.BlockNumber);
-            this.log_message("\tsending ACK=" + message.BlockNumber.ToString() + " past=" + Convert.ToString(past_acks, 2), ELogLevel.TRACE);
-            status = this.send_ack(message.BlockNumber, past_acks);
+            past_acks = this.m_transfer_receive_tracker.get_past_acks(message.BlockNumber);
+            this.log_message("\tsending ACK=" + message.BlockNumber.ToString() + " past=" + Convert.ToString(past_acks, 2).PadLeft(32, '0'), ELogLevel.TRACE);
+            if (this.send_ack(message.BlockNumber, past_acks) != EStatus.OK)
+            {
+                return EStatus.ERROR;
+            }
 
             // write the data to file
             this.write_file_bytes(this.calculate_file_position(message.BlockNumber), message.DataLength, message.Data);
@@ -665,7 +687,7 @@ namespace djs.network.tftp
             }
 
             // return the status
-            return status;
+            return EStatus.OK;
             #endregion
         }
 
@@ -750,7 +772,10 @@ namespace djs.network.tftp
                     // LSB is 0 so this ACK is anti-ACKed
                     long acked_block = message.BlockNumber - 32 + i;
 
-                    // if it was the one just prior...go ahead and resend it
+                    // if it was the one just prior...go ahead and resend it immediately
+                    // if it is not the one just prior then it is still tracked through the bitmap field
+                    // but will not be resent until the bucket actually times out
+                    // maybe we could adjust this to automatically resend when it is just prior, halfway, then at the end?
                     if (acked_block == message.BlockNumber - 1)
                     {
                         // see if this is an outstanding block
@@ -760,7 +785,7 @@ namespace djs.network.tftp
                         if (bucket_index != -1)
                         {
                             // resend it
-                            this.log_message("\tResending data=" + (acked_block).ToString(), ELogLevel.WARNING);
+                            this.log_message("\tMissing Data Block detected.  Resending data=" + (acked_block).ToString(), ELogLevel.WARNING);
                             this.m_bucket_manager.Timers[bucket_index].Restart();
                             if (this.send_data(acked_block) != EStatus.OK)
                             {
@@ -1443,7 +1468,7 @@ namespace djs.network.tftp
                             {
                                 // this bucket has timed out
                                 // send it again
-                                this.log_message("\tResending data=" + this.m_bucket_manager.Blocks[i].ToString(), ELogLevel.WARNING);
+                                this.log_message("\tBucket timeout.  Resending data=" + this.m_bucket_manager.Blocks[i].ToString(), ELogLevel.WARNING);
                                 this.m_bucket_manager.Timers[i].Restart();
                                 status = this.send_data(this.m_bucket_manager.Blocks[i]);
                                 if (status != EStatus.OK)
@@ -1693,7 +1718,7 @@ namespace djs.network.tftp
                     break;
                 case ELogLevel.TRACE:
                     {
-                        Console.WriteLine(this.m_timer_total.Elapsed.ToString() + " *** TRACE ***: " + message);
+//                        Console.WriteLine(this.m_timer_total.Elapsed.ToString() + " *** TRACE ***: " + message);
                     }
                     break;
                 case ELogLevel.MILESTONE:
