@@ -1693,7 +1693,7 @@ namespace djs.network.tftp
                     break;
                 case ELogLevel.TRACE:
                     {
-//                        Console.WriteLine(this.m_timer_total.Elapsed.ToString() + " *** TRACE ***: " + message);
+                        Console.WriteLine(this.m_timer_total.Elapsed.ToString() + " *** TRACE ***: " + message);
                     }
                     break;
                 case ELogLevel.MILESTONE:
