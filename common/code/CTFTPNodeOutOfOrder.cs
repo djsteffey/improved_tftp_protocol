@@ -574,7 +574,7 @@ namespace djs.network.tftp
                 // time to send another ping?
                 if (this.m_node_type == ENodeType.CLIENT)
                 {
-                    if (this.m_timer_last_ping.Elapsed.TotalSeconds >= 1.0f)
+                    if (this.m_timer_last_ping.Elapsed.TotalSeconds >= 0.25f)
                     {
                         // every one second or so...
                         this.send_ping();
