@@ -145,6 +145,7 @@ namespace djs.network.tftp
             private int m_num_buckets;
             private long[] m_block_numbers;
             private Stopwatch[] m_timer_block;
+            private int[] m_number_timeouts;
             private long m_next_block;
             private long m_number_blocks_to_transfer;
 
@@ -156,6 +157,10 @@ namespace djs.network.tftp
             public Stopwatch[] Timers
             {
                 get { return this.m_timer_block; }
+            }
+            public int[] NumberTimeouts
+            {
+                get { return this.m_number_timeouts; }
             }
             public long NextBlock
             {
@@ -178,10 +183,12 @@ namespace djs.network.tftp
                 // create the buckets and their timers
                 this.m_block_numbers = new long[this.m_num_buckets];
                 this.m_timer_block = new Stopwatch[this.m_num_buckets];
+                this.m_number_timeouts = new int[this.m_num_buckets];
                 for (int i = 0; i < this.m_num_buckets; ++i)
                 {
                     this.m_block_numbers[i] = -1;
                     this.m_timer_block[i] = new Stopwatch();
+                    this.m_number_timeouts[i] = 0;
                 }
 
                 // the next block (first one) is going to be 1
@@ -592,6 +599,13 @@ namespace djs.network.tftp
                             (this.m_bucket_manager.Blocks[i] != -1))
                         {
                             // this bucket has timed out
+                            this.m_bucket_manager.NumberTimeouts[i] += 1;
+                            if (this.m_bucket_manager.NumberTimeouts[i] >= 3)
+                            {
+                                // too many timeouts
+                                this.log_message("\tBucket timeout.  Too many so giving up.  If this was the last bucket then very very likely receiver still got all the data and completed", ELogLevel.ERROR);
+                                return EStatus.ERROR;
+                            }
                             // send it again
                             this.log_message("\tBucket timeout.  Resending data=" + this.m_bucket_manager.Blocks[i].ToString(), ELogLevel.WARNING);
                             this.m_bucket_manager.Timers[i].Restart();
@@ -716,6 +730,7 @@ namespace djs.network.tftp
                     this.log_message("\tSending Block=" + (next_block).ToString(), ELogLevel.TRACE);
                     this.m_bucket_manager.Blocks[i] = next_block;
                     this.m_bucket_manager.Timers[i].Start();
+                    this.m_bucket_manager.NumberTimeouts[i] = 0;
                     if (this.send_data(next_block) != EStatus.OK)
                     {
                         return EStatus.ERROR;
@@ -836,6 +851,9 @@ namespace djs.network.tftp
 
                         // reset its timeout timer
                         this.m_bucket_manager.Timers[i].Restart();
+
+                        // reset number timeouts
+                        this.m_bucket_manager.NumberTimeouts[i] = 0;
 
                         // send it
                         this.send_data(this.m_bucket_manager.Blocks[i]);
@@ -997,6 +1015,7 @@ namespace djs.network.tftp
                 {
                     this.m_bucket_manager.Blocks[i] = i + 1;
                     this.m_bucket_manager.Timers[i].Start();
+                    this.m_bucket_manager.NumberTimeouts[i] = 0;
                     this.send_data(i + 1);
                 }
                 this.m_state = EState.WAITING_ACK;
@@ -1467,6 +1486,12 @@ namespace djs.network.tftp
                                 (this.m_bucket_manager.Blocks[i] != -1))
                             {
                                 // this bucket has timed out
+                                this.m_bucket_manager.NumberTimeouts[i] += 1;
+                                if (this.m_bucket_manager.NumberTimeouts[i] >= 3)
+                                {
+                                    return EStatus.ERROR;
+                                }
+
                                 // send it again
                                 this.log_message("\tBucket timeout.  Resending data=" + this.m_bucket_manager.Blocks[i].ToString(), ELogLevel.WARNING);
                                 this.m_bucket_manager.Timers[i].Restart();

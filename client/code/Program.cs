@@ -25,7 +25,7 @@ namespace djs.network.tftp
             // latency will be externally controlled
             // this program will be ran for each latency that is changed externally
 
-            List<float> list_dropchance = new List<float>() { /*0.0f,*/ 0.005f, 0.01f };
+            List<float> list_dropchance = new List<float>() { 0.0f, 0.005f, 0.01f };
             List<ushort> list_timeout = new List<ushort>() { 1, 3 };
             List<uint> list_tsize = new List<uint>()
             {
