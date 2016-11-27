@@ -600,7 +600,9 @@ namespace djs.network.tftp
                         {
                             // this bucket has timed out
                             this.m_bucket_manager.NumberTimeouts[i] += 1;
-                            if (this.m_bucket_manager.NumberTimeouts[i] >= 3)
+                            // for now dont ever have too many
+
+                            if (this.m_bucket_manager.NumberTimeouts[i] >= 10)
                             {
                                 // too many timeouts
                                 this.log_message("\tBucket timeout.  Too many so giving up.  If this was the last bucket then very very likely receiver still got all the data and completed", ELogLevel.ERROR);
@@ -697,6 +699,11 @@ namespace djs.network.tftp
             // need to check if we have now received everything
             if (this.m_transfer_receive_tracker.is_everything_received() == true)
             {
+                // send the final ack a couple more times to make sure it gets through
+                for (int i = 0; i < 3; ++i)
+                {
+                    this.send_ack(message.BlockNumber, past_acks);
+                }
                 this.m_state = EState.TRANSFER_COMPLETE;
             }
 
@@ -802,6 +809,7 @@ namespace djs.network.tftp
                             // resend it
                             this.log_message("\tMissing Data Block detected.  Resending data=" + (acked_block).ToString(), ELogLevel.WARNING);
                             this.m_bucket_manager.Timers[bucket_index].Restart();
+                            this.m_bucket_manager.NumberTimeouts[bucket_index] = 0;
                             if (this.send_data(acked_block) != EStatus.OK)
                             {
                                 return EStatus.ERROR;
@@ -1487,8 +1495,12 @@ namespace djs.network.tftp
                             {
                                 // this bucket has timed out
                                 this.m_bucket_manager.NumberTimeouts[i] += 1;
-                                if (this.m_bucket_manager.NumberTimeouts[i] >= 3)
+                                // for now dont have too many attempts
+                                
+                                if (this.m_bucket_manager.NumberTimeouts[i] >= 10)
                                 {
+                                    // too many timeouts
+                                    this.log_message("\tBucket timeout.  Too many so giving up.  If this was the last bucket then very very likely receiver still got all the data and completed", ELogLevel.ERROR);
                                     return EStatus.ERROR;
                                 }
 
