@@ -25,20 +25,21 @@ namespace djs.network.tftp
             // latency will be externally controlled
             // this program will be ran for each latency that is changed externally
 
-            List<float> list_dropchance = new List<float>() { 0.0f, 0.005f, 0.01f };
-            List<ushort> list_timeout = new List<ushort>() { 1, 3 };
+            List<float> list_dropchance = new List<float>() { 0.0f, 0.00125f, 0.0025f, 0.00375f, 0.005f, 00.00625f, 0.0075f, 0.00875f, 0.01f };
+            List<ushort> list_timeout = new List<ushort>() { 1 };
             List<uint> list_tsize = new List<uint>()
             {
-                (1024 * 1024 * 8),              // one 8 MB "file" 
+                (1024 * 1024 * 16),              // one 16 MB "file" 
             };
-            List<ushort> list_windowsize = new List<ushort>() { 1, 2, 4, 8, 16, 32 };
-            List<ushort> list_blksize = new List<ushort>() { 512, 1024, 1468, 2048, 4096 };
+            List<ushort> list_windowsize = new List<ushort>() { /*1, 2, 4,*/ 8, /*16*/ };
+            List<ushort> list_blksize = new List<ushort>() { /*512, 1024,*/ 1468, /*2048*/ };
 
 
 
 
             // loop all possible variations
-            foreach (float dropchance in list_dropchance)
+//            foreach (float dropchance in list_dropchance)
+            for (float dropchance = 0.0f; dropchance <= 0.01f; dropchance += 0.00025f)
             {
                 foreach (ushort timeout in list_timeout)
                 {
@@ -48,7 +49,7 @@ namespace djs.network.tftp
                         {
                             foreach (ushort blksize in list_blksize)
                             {
-				                for (int i = 0; i < 3; ++i)
+				                for (int i = 0; i < 10; ++i)
 				                {
 	                                // run the test and spit the results into a file that i can import into a spreadsheet
 	                                // for analyzing.   probably just some kind of csv file
@@ -61,9 +62,9 @@ namespace djs.network.tftp
 	                                            "   blksize=" + blksize.ToString() + "\n";
 	                                Console.WriteLine(s);
 
-                                    CTFTPNodeOutOfOrder client = new CTFTPNodeOutOfOrder();
-	                                if (client.client_transfer_file(CTFTPNodeOutOfOrder.ETransferDirection.GET, server_name, 69,
-	                                    "doesntmatter", blksize, timeout, tsize, windowsize, dropchance, true) == CTFTPNodeOutOfOrder.EStatus.OK)
+                                    CTFTPNode client = new CTFTPNode();
+	                                if (client.client_transfer_file(CTFTPNode.ETransferDirection.GET, server_name, 69,
+	                                    "doesntmatter", blksize, timeout, tsize, windowsize, dropchance, true) == CTFTPNode.EStatus.OK)
 	                                {
 	                                    // transfer complete and successful
 	                                    // record the stats
